@@ -93,7 +93,5 @@ nemotron-fol-evidence-gate/
 
 <div align="center">
 
-`▚ THE NVIDIA INNOVATOR'S DILEMMA — <a href="https://www.dram.gold/">dram.gold</a>` ·
-`PAPER — <a href="https://doi.org/10.6084/m9.figshare.33427318">figshare 33427318</a>`
-
-</div>
+`▚ [THE NVIDIA INNOVATOR'S DILEMMA](https://www.dram.gold/) ·
+`[PAPER DOI 10.6084/m9.figshare.33427318](https://doi.org/10.6084/m9.figshare.33427318)
