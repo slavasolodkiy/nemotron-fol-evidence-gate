@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEMOTRON × FOL EVIDENCE GATE — local AI lab note | Slava Solodkiy</title>
+<meta name="description" content="NVIDIA Nemotron 3 Nano Omni on Olares One: deterministic MRZ validation, Prolog/FOL policy gating, evidence-first compliance architecture. Module 01 of the AuthorityClaw provenance chain.">
+<style>
+:root{
+  --bg:#08090c; --panel:#0e1014; --line:#23262e; --line2:#31353f;
+  --ink:#f2f1ea; --dim:#8a8f9a; --acid:#c8ff00; --mag:#ff2d9a; --cy:#35f2ff;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);overflow-x:hidden}
+::selection{background:var(--acid);color:#000}
+
+/* ---------- atmosphere ---------- */
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:60;mix-blend-mode:overlay;opacity:.5;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.045) 0 1px,transparent 1px 3px)}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:59;
+  background:radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.55) 100%)}
+.bggrid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.16;
+  background:
+   linear-gradient(rgba(200,255,0,.05) 1px,transparent 1px),
+   linear-gradient(90deg,rgba(200,255,0,.05) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(80% 60% at 50% 20%,#000 30%,transparent 100%)}
+
+/* ---------- header ---------- */
+header{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;background:rgba(8,9,12,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.22em}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--acid);
+  box-shadow:0 0 10px var(--acid);animation:led 1.6s steps(2) infinite}
+@keyframes led{50%{opacity:.25}}
+.brand b{color:var(--acid)}
+.jobchip{font-size:10px;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line2);
+  padding:5px 10px;border-radius:3px;display:flex;gap:8px;align-items:center}
+.jobchip .ok{color:var(--acid);animation:led 2.2s steps(2) infinite}
+
+/* ---------- ticker ---------- */
+.ticker{overflow:hidden;border-bottom:1px solid var(--line);background:var(--panel);position:relative;z-index:2}
+.ticker div{display:flex;gap:48px;white-space:nowrap;padding:7px 0;font-size:11px;letter-spacing:.18em;
+  color:var(--dim);animation:tick 28s linear infinite;width:max-content}
+.ticker span i{color:var(--acid);font-style:normal}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+main{position:relative;z-index:2;max-width:1180px;margin:auto;padding:0 22px 80px}
+
+/* ---------- hero ---------- */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;padding:64px 0 44px}
+.kicker{font-size:11px;letter-spacing:.34em;color:var(--cy);margin-bottom:18px}
+h1.glitch{font-size:clamp(3rem,8.5vw,7.2rem);line-height:.92;font-weight:800;letter-spacing:-.02em;position:relative}
+h1.glitch span{display:block}
+h1.glitch .l2{color:transparent;-webkit-text-stroke:1.5px var(--ink)}
+.glitchable{position:relative}
+.glitchable::before,.glitchable::after{content:attr(data-text);position:absolute;inset:0;opacity:0;pointer-events:none}
+body.glitching .glitchable::before{opacity:.85;color:var(--mag);transform:translate(-4px,2px);
+  clip-path:inset(12% 0 55% 0);animation:gl .28s steps(3) both}
+body.glitching .glitchable::after{opacity:.85;color:var(--cy);transform:translate(4px,-2px);
+  clip-path:inset(60% 0 8% 0);animation:gl .28s steps(3) both}
+@keyframes gl{0%{clip-path:inset(10% 0 60% 0)}50%{clip-path:inset(45% 0 20% 0)}100%{clip-path:inset(70% 0 5% 0)}}
+.sub{margin-top:20px;color:var(--dim);font-size:14px;max-width:46ch;line-height:1.7}
+.sub b{color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.chip{font-size:10px;letter-spacing:.16em;border:1px solid var(--line2);border-radius:3px;
+  padding:6px 10px;color:var(--dim);transition:.2s}
+.chip:hover{border-color:var(--acid);color:var(--acid);transform:translateY(-2px)}
+.chip i{font-style:normal;color:var(--acid)}
+
+/* ---------- maze device ---------- */
+.device{position:relative;background:linear-gradient(160deg,#11141a,#0a0c10);
+  border:1px solid var(--line2);border-radius:18px;padding:18px 18px 10px;
+  box-shadow:0 30px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)}
+.device::before{content:"";position:absolute;inset:0;border-radius:18px;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 4px)}
+.devhead{display:flex;justify-content:space-between;align-items:center;font-size:9.5px;
+  letter-spacing:.24em;color:var(--dim);padding:0 4px 10px}
+.devhead .rec{color:var(--mag)} .devhead .rec::before{content:"●";margin-right:6px;animation:led 1.2s steps(2) infinite}
+.maze{width:100%;height:auto;display:block}
+.cell{fill:rgba(255,255,255,.015);stroke:var(--line);stroke-width:1}
+.nshadow{fill:rgba(0,0,0,.5)}
+.edge{stroke:#3a3f4b;stroke-width:2.4;stroke-linecap:round}
+.edge.pathedge{stroke:#1f6f4a;stroke-width:2.4}
+.edge.bridge{stroke:var(--acid);stroke-width:3;filter:drop-shadow(0 0 6px rgba(200,255,0,.7));
+  animation:bridgepulse 2.4s ease-in-out infinite;stroke-dasharray:7 5}
+@keyframes bridgepulse{50%{opacity:.45;filter:drop-shadow(0 0 2px rgba(200,255,0,.3))}}
+.walk{fill:none;stroke:var(--cy);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 8px rgba(53,242,255,.8));
+  stroke-dasharray:620;stroke-dashoffset:620;animation:walk 5s ease-in-out infinite}
+@keyframes walk{0%{stroke-dashoffset:620;opacity:0}8%{opacity:1}55%{stroke-dashoffset:0;opacity:1}
+  85%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.node{fill:#0a0c10;stroke:#c9cdd6;stroke-width:1.6}
+.node.start{stroke:var(--acid);filter:drop-shadow(0 0 6px rgba(200,255,0,.8))}
+.node.exit{stroke:var(--cy);filter:drop-shadow(0 0 6px rgba(53,242,255,.8))}
+.nlabel{fill:#565c68;font-size:8px;text-anchor:middle;font-family:var(--mono)}
+.taglabel{font-size:9px;letter-spacing:.28em;text-anchor:middle;font-family:var(--mono)}
+.tstart{fill:var(--acid)} .texit{fill:var(--cy)}
+.devfoot{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.2em;
+  color:var(--dim);padding:10px 4px 6px}
+.devfoot .b{color:var(--acid)} .devfoot .c{color:var(--cy)}
+
+/* ---------- readouts ---------- */
+.readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 70px}
+.readout{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 20px;
+  position:relative;overflow:hidden;transition:transform .25s,border-color .25s;cursor:default}
+.readout:hover{transform:translateY(-6px);border-color:var(--rc,var(--acid))}
+.readout::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(70% 55% at 50% 0%,color-mix(in srgb,var(--rc,var(--acid)) 12%,transparent),transparent 70%)}
+.readout .lab{font-size:10px;letter-spacing:.24em;color:var(--dim);margin-bottom:10px}
+.readout .num{font-size:clamp(2.6rem,5vw,4rem);font-weight:800;color:var(--rc,var(--acid));
+  text-shadow:0 0 24px color-mix(in srgb,var(--rc,var(--acid)) 45%,transparent);line-height:1}
+.readout .cap{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.6}
+.r1{--rc:var(--cy)} .r2{--rc:var(--acid)} .r3{--rc:var(--mag)}
+
+/* ---------- sections ---------- */
+section{margin:70px 0}
+.sechead{display:flex;align-items:baseline;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+.sechead .idx{font-size:11px;letter-spacing:.3em;color:var(--acid);border:1px solid var(--line2);
+  padding:5px 10px;border-radius:3px}
+.sechead h2{font-size:clamp(1.5rem,3.4vw,2.4rem);letter-spacing:-.01em}
+.sechead .sub2{font-size:11px;color:var(--dim);letter-spacing:.2em;margin-left:auto}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.on{opacity:1;transform:none}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;position:relative;overflow:hidden}
+.card h3{font-size:12px;letter-spacing:.26em;margin-bottom:14px;color:var(--cy)}
+.card p{font-size:13px;line-height:1.75;color:#c6c9d1}
+.card p b{color:var(--ink)} .card p .a{color:var(--acid)} .card p .m{color:var(--mag)}
+.formula{margin-top:18px;border:1px dashed var(--line2);border-radius:10px;padding:16px 18px;
+  font-size:15px;letter-spacing:.06em;color:var(--acid);background:rgba(200,255,0,.03)}
+.formula small{display:block;margin-top:8px;font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.bars{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+.bar{height:26px;border:1px solid var(--line2);border-radius:4px;position:relative;overflow:hidden;font-size:10px}
+.bar i{position:absolute;inset:0;width:0;transition:width 1.2s cubic-bezier(.2,.9,.2,1)}
+.bar span{position:absolute;inset:0;display:flex;align-items:center;padding-left:10px;letter-spacing:.14em;color:var(--ink);mix-blend-mode:difference}
+.b75 i{background:var(--cy)} .b50 i{background:var(--acid)} .b100 i{background:var(--mag)}
+
+/* ---------- terminal ---------- */
+.term{background:#05070a;border:1px solid var(--line2);border-radius:12px;overflow:hidden}
+.termbar{display:flex;gap:7px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.termbar i{width:9px;height:9px;border-radius:50%;background:var(--line2)}
+.termbar i:first-child{background:var(--mag)} .termbar i:nth-child(2){background:var(--acid)} .termbar i:nth-child(3){background:var(--cy)}
+.term pre{padding:20px;font-size:12px;line-height:1.9;color:#b9f0c4;white-space:pre-wrap;word-break:break-all}
+.term pre .k{color:var(--cy)} .term pre .a{color:var(--acid)} .term pre .m{color:var(--mag)}
+.cursor{display:inline-block;width:8px;height:14px;background:var(--acid);vertical-align:-2px;animation:led 1s steps(2) infinite}
+
+/* ---------- mismatch ---------- */
+.zz{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:stretch}
+.zz .big{font-size:clamp(1.9rem,4.5vw,3.4rem);font-weight:800;text-align:center;padding:30px 16px;border-radius:14px}
+.zz .req{border:1px solid var(--cy);color:var(--cy);background:rgba(53,242,255,.05);
+  text-shadow:0 0 20px rgba(53,242,255,.5)}
+.zz .obs{border:1px solid var(--mag);color:var(--mag);background:rgba(255,45,154,.05);
+  text-shadow:0 0 20px rgba(255,45,154,.5);animation:obsflick 4s infinite}
+@keyframes obsflick{0%,92%,96%,100%{opacity:1}94%{opacity:.4}}
+.zz .vs{align-self:center;font-size:11px;letter-spacing:.3em;color:var(--dim);writing-mode:vertical-rl}
+.zz .big small{display:block;font-size:10px;letter-spacing:.26em;margin-top:12px;color:var(--dim);font-weight:400;text-shadow:none}
+
+/* ---------- world certificate ---------- */
+.worldwrap{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.worldcard{border:1px solid #4fa46c;border-radius:14px;background:var(--panel);padding:24px;position:relative;overflow:hidden}
+.worldcard::after{content:"CERTIFIED · EXIT";position:absolute;top:14px;right:-38px;transform:rotate(35deg);
+  background:var(--acid);color:#000;font-size:9px;letter-spacing:.2em;padding:4px 40px}
+.worldcard .p1{font-size:11px;letter-spacing:.2em;color:#7fd79a;margin-bottom:14px}
+.worldcard pre{font-size:clamp(11px,1.6vw,14px);line-height:1.25;color:var(--ink)}
+.pathline{margin-top:16px;font-size:12px;color:var(--dim)}
+.pathline b{color:var(--cy);letter-spacing:.1em}
+
+/* ---------- quantum honesty panel ---------- */
+.honest{border:1px solid var(--line2);border-left:3px solid var(--acid);border-radius:0 14px 14px 0;
+  background:var(--panel);padding:26px}
+.honest p{font-size:13px;line-height:1.8;color:#c6c9d1;margin-bottom:12px}
+.honest p:last-child{margin-bottom:0}
+.honest .a{color:var(--acid)} .honest .m{color:var(--mag)} .honest b{color:var(--ink)}
+
+/* ---------- evidence ---------- */
+details{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:var(--panel);overflow:hidden}
+summary{cursor:pointer;padding:16px 20px;font-size:11px;letter-spacing:.24em;color:var(--dim);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;transition:.2s}
+summary::after{content:"+";font-size:16px;color:var(--acid);transition:.2s}
+details[open] summary::after{transform:rotate(45deg)}
+summary:hover{color:var(--acid);border-color:var(--acid)}
+details pre{max-height:420px;overflow:auto;padding:0 20px 18px;font-size:11px;line-height:1.55;color:#9aa3ad}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line);margin-top:80px;padding:44px 22px 60px;position:relative;z-index:2}
+.footin{max-width:1180px;margin:auto;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:30px}
+footer h4{font-size:10px;letter-spacing:.3em;color:var(--dim);margin-bottom:16px}
+footer p, footer a{font-size:12px;line-height:2;color:#b9bdc7;text-decoration:none}
+footer a{display:block;transition:.2s}
+footer a:hover{color:var(--acid);transform:translateX(6px)}
+footer a i{font-style:normal;color:var(--line2);margin-right:8px}
+.footname{font-size:20px;font-weight:800;margin-bottom:8px}
+.footname span{color:var(--acid)}
+.copy{max-width:1180px;margin:40px auto 0;font-size:10px;letter-spacing:.2em;color:#565c68;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+@media(max-width:900px){
+  .hero,.cols,.worldwrap,.zz{grid-template-columns:1fr}
+  .zz .vs{writing-mode:horizontal-tb}
+  .readouts{grid-template-columns:1fr}
+  .footin{grid-template-columns:1fr}
+}
+
+/* ---------- TE hardware readouts ---------- */
+.readouts{gap:22px}
+.rdevice{position:relative}
+.plate{position:relative;border-radius:16px;padding:16px 14px 14px;
+  background:linear-gradient(165deg,#1b1e24,#101318 60%,#14171c);
+  border:1px solid #2c313a;
+  box-shadow:0 18px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.07), inset 0 -2px 6px rgba(0,0,0,.5)}
+.plate::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(115deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px)}
+.screw{position:absolute;width:10px;height:10px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#4a4f58,#191c21 70%);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
+.screw::after{content:"";position:absolute;left:1px;right:1px;top:4px;height:1.5px;background:#0a0c0f;transform:rotate(38deg)}
+.screw.tl{top:7px;left:7px}.screw.tr{top:7px;right:7px}.screw.bl{bottom:7px;left:7px}.screw.br{bottom:7px;right:7px}
+.dhead,.dfoot{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 12px}
+.dfoot{padding:12px 6px 2px}
+.knob{width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#3a3f47,#14171c 75%);
+  box-shadow:0 3px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.15);position:relative}
+.knob::after{content:"";position:absolute;left:50%;top:3px;width:2.5px;height:11px;background:#9aa1ab;transform:translateX(-50%);border-radius:2px}
+.knob.sm{width:26px;height:26px}.knob.sm::after{height:8px}
+.toggle{width:40px;height:20px;border-radius:12px;background:#0b0d11;border:1px solid #262b33;position:relative;box-shadow:inset 0 2px 4px rgba(0,0,0,.7)}
+.toggle::after{content:"";position:absolute;top:2px;left:3px;width:14px;height:14px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#4a4f58,#1c2026 75%)}
+.led{width:10px;height:10px;border-radius:50%;background:#23262e;border:1px solid #33383f}
+.led.on{background:var(--rc,var(--acid));border-color:transparent;box-shadow:0 0 9px var(--rc,var(--acid));animation:led 2.6s steps(2) infinite}
+.jack{width:14px;height:26px;border-radius:7px;background:#0b0d11;border:1px solid #262b33;box-shadow:inset 0 2px 5px rgba(0,0,0,.8)}
+.screen{background:#05070a;border:1px solid #20242b;border-radius:10px;padding:18px 16px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.85), inset 0 0 40px rgba(0,0,0,.6)}
+.screen .lab{font-size:9.5px;letter-spacing:.22em;color:var(--dim);margin-bottom:10px}
+.screen .num{font-size:clamp(2.5rem,4.6vw,3.6rem);font-weight:800;color:var(--rc,var(--acid));line-height:1;
+  text-shadow:0 0 18px color-mix(in srgb,var(--rc,var(--acid)) 55%,transparent)}
+.screen .num.seg{font-family:var(--mono);letter-spacing:.04em;
+  text-shadow:0 0 18px color-mix(in srgb,var(--rc,var(--acid)) 55%,transparent),
+   2px 0 0 color-mix(in srgb,var(--rc,var(--acid)) 30%,transparent),
+   -2px 0 0 color-mix(in srgb,var(--rc,var(--acid)) 30%,transparent)}
+.screen .cap{font-size:10.5px;color:var(--dim);margin-top:12px;line-height:1.6}
+
+/* ---------- probability diagnostic ---------- */
+.diag{width:100%;border-collapse:collapse;font-size:11px;letter-spacing:.08em}
+.diag th{font-size:9px;letter-spacing:.22em;color:var(--dim);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2)}
+.diag td{padding:10px;border-bottom:1px solid var(--line);color:#c6c9d1}
+.diag td:first-child{color:var(--dim);font-size:9px;letter-spacing:.22em;white-space:nowrap}
+.diag td.c{color:var(--cy)} .diag td.a{color:var(--acid)} .diag td.m{color:var(--mag)}
+.diag tr:hover td{background:rgba(255,255,255,.025)}
+
+/* ---------- AuthorityClaw hub additions ---------- */
+.win{position:relative;border-radius:18px;padding:26px 28px;overflow:hidden;
+  background:linear-gradient(120deg,rgba(200,255,0,.10),rgba(255,45,154,.06) 60%,rgba(53,242,255,.08));
+  border:1px solid rgba(200,255,0,.55);
+  box-shadow:0 0 40px rgba(200,255,0,.12), inset 0 1px 0 rgba(255,255,255,.08)}
+.win::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(115deg,rgba(200,255,0,.04) 0 2px,transparent 2px 9px)}
+.win .wtag{font-size:9.5px;letter-spacing:.3em;color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.win .wtag .cup{color:var(--acid)}
+.win h2{font-size:clamp(1.6rem,3.6vw,2.6rem);letter-spacing:-.01em;line-height:1.1}
+.win h2 b{color:var(--acid);text-shadow:0 0 22px rgba(200,255,0,.5)}
+.win p{margin-top:12px;font-size:12px;color:var(--dim);line-height:1.7;max-width:78ch}
+.win p b{color:var(--ink)}
+.win .ev{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+a.pill{font-size:9.5px;letter-spacing:.2em;text-decoration:none;color:var(--acid);
+  border:1px solid rgba(200,255,0,.5);border-radius:3px;padding:6px 10px;transition:.2s}
+a.pill:hover{background:var(--acid);color:#000;transform:translateY(-2px)}
+a.pill.m{color:var(--mag);border-color:rgba(255,45,154,.5)}
+a.pill.m:hover{background:var(--mag);color:#000}
+a.pill.c{color:var(--cy);border-color:rgba(53,242,255,.5)}
+a.pill.c:hover{background:var(--cy);color:#000}
+
+/* ---------- provenance modules ---------- */
+.mods{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:.25s}
+.mod:hover{border-color:var(--mc,var(--acid));transform:translateY(-4px)}
+.mod::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(70% 50% at 50% 0%,color-mix(in srgb,var(--mc,var(--acid)) 10%,transparent),transparent 70%)}
+.mod .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mod .idx{font-size:10px;letter-spacing:.28em;color:var(--mc,var(--acid))}
+.mod .status{font-size:8.5px;letter-spacing:.22em;color:var(--dim);border:1px solid var(--line2);border-radius:3px;padding:4px 8px}
+.mod .status.hot{color:#000;background:var(--acid);border-color:var(--acid);animation:led 2.4s steps(2) infinite}
+.mod h3{font-size:15px;letter-spacing:.02em;margin-bottom:10px;color:var(--ink)}
+.mod p{font-size:12px;color:#c6c9d1;line-height:1.75}
+.mod p b{color:var(--ink)} .mod p .a{color:var(--acid)} .mod p .m{color:var(--mag)} .mod p .c{color:var(--cy)}
+.mod .links{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+.m1{--mc:var(--cy)} .m2{--mc:var(--acid)} .m3{--mc:#ffb020} .m4{--mc:var(--mag)} .m5{--mc:#9b7bff}
+
+/* ---------- authority ladder + slips ---------- */
+.dash{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px}
+.ladder{list-style:none;margin:0;padding:0}
+.rung{position:relative;padding:10px 0 12px 22px;border-left:2px solid var(--line2);font-size:12px}
+.rung:last-child{border-left-color:transparent}
+.rung::before{content:"";position:absolute;left:-6px;top:15px;width:10px;height:10px;border-radius:50%;
+  background:var(--bg);border:2px solid var(--acid)}
+.rung.revoked{border-left-style:dashed;border-left-color:var(--mag)}
+.rung.revoked::before{border-color:var(--mag);background:var(--mag)}
+.rung.blocked{color:var(--dim)}
+.rung strong{display:block;font-size:12.5px}
+.rung .role{color:var(--dim);font-size:10.5px;letter-spacing:.1em}
+.rung .limit{color:#c6c9d1;font-size:11px;margin-top:3px}
+.rung .state{color:var(--mag);font-size:9.5px;letter-spacing:.18em}
+.meter{margin-top:18px}
+.mbar{height:10px;border:1px solid var(--line2);border-radius:3px;overflow:hidden;background:#05070a}
+.mbar i{display:block;height:100%;width:69.75%;background:var(--acid);box-shadow:0 0 12px rgba(200,255,0,.6)}
+.meter p{font-size:10px;color:var(--dim);margin-top:6px;letter-spacing:.14em}
+.slips{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.slip{position:relative;background:#05070a;border:1px solid var(--line);border-radius:12px;padding:16px 140px 14px 18px}
+.slip.event{border-style:dashed;color:var(--dim);padding:12px 18px;font-size:11px;letter-spacing:.08em}
+.slip .who{font-size:12.5px;font-weight:700}
+.slip .ref{color:var(--dim);font-size:10px;margin-left:8px;letter-spacing:.1em}
+.slip .amount{font-size:26px;font-weight:800;margin:4px 0 6px}
+.slip ul{margin:0;padding-left:16px;font-size:11.5px;color:#c6c9d1}
+.slip .flag{margin-top:8px;border-left:2px solid var(--mag);padding-left:10px;color:var(--mag);font-size:10.5px}
+.slip .foot{margin-top:8px;color:var(--dim);font-size:9.5px;letter-spacing:.1em;overflow-wrap:anywhere}
+.stamp{position:absolute;right:16px;top:16px;transform:rotate(-7deg);border:2px double currentColor;border-radius:6px;
+  padding:5px 12px;font-weight:800;font-size:12px;letter-spacing:.16em}
+.stamp.PAID,.stamp.ALLOW{color:var(--acid)}
+.stamp.HELD{color:#ffb020}
+.stamp.REFUSED{color:var(--mag)}
+
+/* ---------- book / doi badges ---------- */
+.minibadge{display:inline-flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.16em;
+  color:var(--dim);border:1px dashed var(--line2);border-radius:3px;padding:6px 10px;text-decoration:none;transition:.2s}
+a.minibadge:hover{color:var(--acid);border-color:var(--acid)}
+.minibadge i{font-style:normal}
+
+@media(max-width:900px){.mods,.dash{grid-template-columns:1fr}.slip{padding:64px 16px 14px}}
+
+/* ---------- Nemotron-FOL additions ---------- */
+.metricrow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0}
+.metric{background:#05070a;border:1px solid var(--line2);border-radius:10px;padding:16px 10px;text-align:center;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.7)}
+.metric b{display:block;font-size:clamp(1.3rem,2.6vw,1.9rem);font-weight:800;color:var(--acid);
+  text-shadow:0 0 16px rgba(200,255,0,.45);line-height:1}
+.metric.bad b{color:var(--mag);text-shadow:0 0 16px rgba(255,45,154,.45)}
+.metric.warn b{color:#ffb020;text-shadow:0 0 16px rgba(255,176,32,.45)}
+.metric span{display:block;margin-top:8px;font-size:8.5px;letter-spacing:.18em;color:var(--dim)}
+.verdict{font-family:var(--mono);font-size:12px;line-height:2;background:#05070a;border:1px solid var(--line);
+  border-radius:10px;padding:18px 20px}
+.verdict .p{color:var(--acid)} .verdict .f{color:var(--mag)} .verdict .w{color:#ffb020} .verdict .i{color:var(--cy)}
+.pagepre{background:#05070a;border:1px solid var(--line2);border-radius:10px;padding:18px 20px;
+  font-size:12px;line-height:1.7;color:#b9f0c4;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.pagepre .k{color:var(--cy)} .pagepre .a{color:var(--acid)} .pagepre .m{color:var(--mag)}
+.stmt{margin-top:34px;border:1px solid rgba(200,255,0,.5);border-left:4px solid var(--acid);
+  background:linear-gradient(90deg,rgba(200,255,0,.07),rgba(255,255,255,.015));padding:18px 22px;
+  font-size:clamp(.95rem,1.8vw,1.15rem);letter-spacing:.06em;color:var(--ink)}
+.tl{display:grid;grid-template-columns:90px 1fr;gap:8px 16px;margin-top:8px;font-size:12px}
+.tl .t{color:var(--cy);font-size:10px;letter-spacing:.2em;padding-top:3px}
+.tl .d{color:#c6c9d1;border-left:1px solid var(--line2);padding:0 0 12px 14px;line-height:1.7}
+@media(max-width:900px){.metricrow{grid-template-columns:repeat(2,1fr)}}
+
+a.minibadge{display:inline-flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.16em;
+  color:var(--dim);border:1px dashed var(--line2);border-radius:3px;padding:6px 10px;text-decoration:none;transition:.2s}
+a.minibadge:hover{color:var(--acid);border-color:var(--acid)}
+.minibadge i{font-style:normal}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bggrid"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<header>
+  <div class="brand"><span class="dot"></span>LOCAL&nbsp;AI&nbsp;LAB&nbsp;<b>/</b>&nbsp;OLARES&nbsp;ONE</div>
+  <div class="jobchip"><span class="ok">● RUN COMPLETE</span> MILESTONE 02 · 06–07 SEP 2026 · <a href="https://www.solodkiy.cv/authorityclaw.html" style="color:var(--acid)">◄ HUB</a></div>
+</header>
+
+<div class="ticker"><div>
+  <span>NEMOTRON 3 NANO OMNI <i>33b-q4_K_M</i></span><span>RTX 5090 24GB <i>//</i> 96GB RAM</span>
+  <span>82% GPU <i>PROCESSOR SPLIT</i></span><span>23.8 GiB <i>VRAM USED</i></span>
+  <span>COLD 48.8s <i>//</i> WARM 11.6s</span><span>9/9 <i>READABLE FIELDS</i></span>
+  <span>MRZ <i>NOT TRUSTED AUTOMATICALLY</i></span><span>FOL DECISION <i>request_better_evidence</i></span>
+  <span>SWI-PROLOG <i>POLICY GATE</i></span><span>SYNTHETIC DATA <i>ONLY</i></span>
+  <span>NEMOTRON 3 NANO OMNI <i>33b-q4_K_M</i></span><span>RTX 5090 24GB <i>//</i> 96GB RAM</span>
+  <span>82% GPU <i>PROCESSOR SPLIT</i></span><span>23.8 GiB <i>VRAM USED</i></span>
+  <span>COLD 48.8s <i>//</i> WARM 11.6s</span><span>9/9 <i>READABLE FIELDS</i></span>
+  <span>MRZ <i>NOT TRUSTED AUTOMATICALLY</i></span><span>FOL DECISION <i>request_better_evidence</i></span>
+  <span>SWI-PROLOG <i>POLICY GATE</i></span><span>SYNTHETIC DATA <i>ONLY</i></span>
+</div></div>
+
+<main>
+  <div class="hero">
+    <div>
+      <div class="kicker">MODULE 01 · PROVENANCE CHAIN · RESEARCH QUESTION</div>
+      <h1 class="glitch">
+        <span class="glitchable" data-text="NEMOTRON">NEMOTRON</span>
+        <span class="l2 glitchable" data-text="× EVIDENCE">× EVIDENCE</span>
+        <span class="glitchable" data-text="GATE.">GATE.</span>
+      </h1>
+      <p class="sub">A local multimodal model read the passport. <b>Then the deterministic layer
+      refused to believe it.</b> Can one local model be the perception layer of an evidence-gated
+      compliance agent — without becoming the final authority?</p>
+      <div class="chips">
+        <span class="chip">NVIDIA <i>NEMOTRON 3 NANO OMNI</i></span>
+        <span class="chip">RTX 5090 <i>24GB</i></span>
+        <span class="chip">96GB <i>RAM</i></span>
+        <span class="chip">OLLAMA <i>0.30.11</i></span>
+        <span class="chip">SWI-PROLOG <i>/ FOL</i></span>
+        <span class="chip">SYNTHETIC <i>DATA ONLY</i></span>
+      </div>
+      <div class="stmt">THE MODEL PERCEIVES. CODE VERIFIES. LOGIC DECIDES. THE MODEL ONLY EXPLAINS.</div>
+    </div>
+    <figure class="device">
+      <div class="devhead"><span>FOL-GATE · POLICY CONSOLE</span><span class="rec">LIVE</span></div>
+      <div style="padding:6px 4px 10px">
+        <div class="pagepre" style="min-height:260px">verification(passport_number_format, <span class="p">pass</span>).
+verification(mrz_line_1_structure, <span class="f">fail</span>).
+verification(mrz_line_2_structure, <span class="p">pass</span>).
+verification(date_of_birth_check, <span class="f">fail</span>).
+verification(expiry_date_check, <span class="f">fail</span>).
+verification(composite_check, <span class="f">fail</span>).
+verification(nationality_vs_mrz, <span class="w">conflict</span>).
+verification(sex_vs_mrz, <span class="w">conflict</span>).
+
+decision(request_better_evidence) :-
+    <span class="k">\+</span> automated_acceptance.
+
+<span class="a">?- decision(D), reasons(R).</span>
+D = request_better_evidence,
+R = [ cross_field_conflict,
+      deterministic_failure,
+      identity_conflict,
+      mrz_integrity_failed ]</div>
+      </div>
+      <div class="devfoot"><span>VERDICT <span class="b">REQUEST_BETTER_EVIDENCE</span></span><span class="c">AI OVERRIDE: FALSE</span></div>
+    </figure>
+  </div>
+
+  <!-- ENVIRONMENT -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">01</span><h2>Test environment</h2><span class="sub2">TIGHT LOCAL FIT</span></div>
+    <div class="cols">
+      <div class="card"><h3>▚ HARDWARE</h3><p>Olares One · NVIDIA GeForce <b>RTX 5090 Laptop GPU</b> · 24,463 MiB VRAM · ~96 GB installed RAM (93 GiB visible).</p></div>
+      <div class="card"><h3>▚ RUNTIME</h3><p>Ollama <b>0.30.11</b> in Olares / Kubernetes · Nemotron <b>33b-q4_K_M</b> · payload ~27.6 GB · OpenAI-style local HTTP workflow.</p></div>
+      <div class="card"><h3>▚ FORMAL LAYER</h3><p>Python deterministic validator · ICAO-style MRZ length/charset · check digits + cross-field comparisons · <b>SWI-Prolog</b> policy engine.</p></div>
+      <div class="card"><h3>▚ WHY NEMOTRON / WHY WE REFUSED TO TRUST IT</h3><p>One local model for text + vision keeps sensitive evidence on-device. But in regulated workflows a plausible answer is <span class="m">not evidence</span> — the experiment was designed so a deterministic layer could reject a confident but malformed extraction.</p></div>
+    </div>
+    <div class="metricrow">
+      <div class="metric"><b>82%</b><span>GPU SHARE · OLLAMA SPLIT</span></div>
+      <div class="metric"><b>23.8</b><span>GIB VRAM USED</span></div>
+      <div class="metric"><b>48.8s</b><span>COLD TEXT RUN</span></div>
+      <div class="metric"><b>11.6s</b><span>WARM TEXT RUN</span></div>
+      <div class="metric warn"><b>12–20s</b><span>VISION RUNS · RANGE</span></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--dim)">Not a “huge headroom” deployment: a tight local fit with CPU/RAM spillover (18% CPU / 82% GPU).</p>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">02</span><h2>Architecture — four layers, four jobs</h2><span class="sub2">AUTHORITY SEPARATION</span></div>
+    <div class="mods" style="grid-template-columns:1fr 1fr">
+      <div class="mod m1 reveal"><div class="mhead"><span class="idx">01 · PERCEPTION</span><span class="status">NEMOTRON</span></div>
+        <h3>“What does the image appear to contain?”</h3><p>Extract human-readable fields + candidate MRZ strings from a synthetic passport image.</p></div>
+      <div class="mod m2 reveal"><div class="mhead"><span class="idx">02 · VERIFICATION</span><span class="status">PYTHON / ICAO</span></div>
+        <h3>“Does the extraction survive deterministic checks?”</h3><p>Length, charset, MRZ check digits, cross-field consistency, uncertainty sanity.</p></div>
+      <div class="mod m3 reveal"><div class="mhead"><span class="idx">03 · DECISION</span><span class="status">PROLOG / FOL</span></div>
+        <h3>“Given verified facts, what policy action follows?”</h3><p>The validator exports facts; the policy engine reasons over facts — not over model prose.</p></div>
+      <div class="mod m4 reveal"><div class="mhead"><span class="idx">04 · EXPLANATION</span><span class="status">NEMOTRON</span></div>
+        <h3>“Tell the reviewer what happened.”</h3><p>Explicitly forbidden from changing, softening or reversing the decision.</p></div>
+    </div>
+  </section>
+
+  <!-- T1 -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">03</span><h2>T1 — clean synthetic passport</h2><span class="sub2">HIGH-CONTRAST · KNOWN GROUND TRUTH</span></div>
+    <div class="cols">
+      <div class="card"><h3>▚ WHAT WORKED</h3><p><b>9/9 human-readable fields</b> extracted correctly. The model separated the printed passport number from the MRZ check digit. Structured JSON via Ollama API.</p></div>
+      <div class="card"><h3>▚ WHAT FAILED</h3><p>MRZ was <span class="m">not reproduced exactly</span> — characters added/dropped in machine-readable lines — while reporting <span class="m">uncertain_fields: []</span>.</p></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>▚ API TIMING SNAPSHOT</h3>
+      <div class="pagepre"><span class="i">total_duration</span>        ≈ 19.65 s
+<span class="i">load_duration</span>       ≈ 15.52 s
+<span class="i">prompt_eval_duration</span>  ≈ 1.23 s
+<span class="i">eval_duration</span>         ≈ 2.83 s</div></div>
+  </section>
+
+  <!-- T2 -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">04</span><h2>T2 — degraded evidence</h2><span class="sub2">BLUR · ROTATION · JPEG · OCCLUSION</span></div>
+    <div class="card">
+      <h3>▚ ADVERSARIAL FINDING: CONFIDENT RECONSTRUCTION</h3>
+      <p>Instead of returning null and marking fields uncertain, Nemotron attempted to reconstruct
+      unreadable fragments — malformed values, still declaring <span class="m">uncertain_fields: []</span>.</p>
+      <div class="pagepre" style="margin-top:14px">{
+  <span class="k">"passport_number"</span>: <span class="m">"L8989U&lt;..&lt;.5"</span>,
+  <span class="k">"mrz_line_2"</span>:      <span class="m">"L898902C36UT0900312: :&lt;&lt;&lt;10"</span>,
+  <span class="k">"uncertain_fields"</span>: []
+}</div>
+    </div>
+    <div class="metricrow" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
+      <div class="metric"><b>12.17s</b><span>T2 WALL CLOCK</span></div>
+      <div class="metric bad"><b>FAIL</b><span>UNCERTAINTY CALIBRATION</span></div>
+      <div class="metric warn"><b>USEFUL</b><span>AS CANDIDATE EXTRACTOR</span></div>
+    </div>
+  </section>
+
+  <!-- T1b -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">05</span><h2>T1b — formally valid control specimen</h2><span class="sub2">44-CHAR MRZ · VALID CHECK DIGITS</span></div>
+    <div class="card">
+      <h3>▚ THE INTERESTING PART: THE MODEL STILL FAILED THE MACHINE-READABLE LAYER</h3>
+      <div class="verdict" style="margin-top:12px">
+<span class="p">PASS</span>  passport_number_format<br>
+<span class="f">FAIL</span>  mrz_line_1_structure <span style="color:var(--dim)">(model returned 42 chars)</span><br>
+<span class="p">PASS</span>  mrz_line_2_structure <span style="color:var(--dim)">(44 chars)</span><br>
+<span class="p">PASS</span>  document_number_check<br>
+<span class="f">FAIL</span>  date_of_birth_check<br>
+<span class="f">FAIL</span>  expiry_date_check<br>
+<span class="f">FAIL</span>  optional_data_check<br>
+<span class="f">FAIL</span>  composite_check<br>
+<span class="w">CONFLICT</span>  nationality / sex / DOB / expiry vs MRZ<br>
+<span class="f">FAIL</span>  uncertainty_calibration</div>
+      <p style="margin-top:14px">Deterministic verdict: <b>NEED_MORE_EVIDENCE</b> — 9/9 readable fields, but <span class="m">no MRZ trusted automatically</span>.</p>
+    </div>
+  </section>
+
+  <!-- FINAL LOOP -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">06</span><h2>Final loop — the model explains, but does not decide</h2><span class="sub2">FOL → HUMAN</span></div>
+    <div class="card">
+      <div class="pagepre">{
+  <span class="k">"decision"</span>: <span class="a">"request_better_evidence"</span>,
+  <span class="k">"explanation"</span>: "Human-readable fields were successfully extracted, but formal
+    MRZ validation and cross-field consistency checks failed due to integrity
+    and identity conflicts.",
+  <span class="k">"next_action"</span>: "Request a new, valid evidence submission from the applicant."
+}</div>
+      <div class="formula" style="margin-top:16px">Nemotron perceives. Code verifies. Logic decides. Nemotron explains.<small>THE MODEL IS USEFUL WITHOUT BEING SOVEREIGN</small></div>
+    </div>
+  </section>
+
+  <!-- PROVEN / NOT PROVEN -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">07</span><h2>What this actually proves</h2><span class="sub2">HONEST BOUNDARIES</span></div>
+    <div class="cols">
+      <div class="card"><h3>▚ PROVEN IN THIS PILOT</h3><p>Nemotron 3 Nano Omni Q4_K_M runs locally on the Olares One · 24GB RTX 5090 hosts most of the model · vision extraction works via local API · human-readable fields extracted accurately on simple synthetic specimens · deterministic MRZ/cross-field checks catch model errors · Prolog deterministically refuses automated acceptance · the model explains the policy result without changing it.</p></div>
+      <div class="card"><h3>▚ NOT PROVEN</h3><p>Production-grade OCR across real passports · reliable uncertainty calibration · legal/regulatory compliance · document authenticity, fraud, liveness or biometrics · that Prolog rules faithfully encode real law · audio/video paths production-ready · anything involving real customer PII — <span class="m">none was used</span>.</p></div>
+    </div>
+    <div class="cols" style="margin-top:16px">
+      <div class="card"><h3>▚ WHY IT MATTERS · PRIVACY</h3><p>Local multimodal perception keeps sensitive evidence on-device while exposing a structured interface to downstream controls.</p></div>
+      <div class="card"><h3>▚ WHY IT MATTERS · AUDITABILITY</h3><p>Checksums, structure rules and explicit conflicts leave a trace that is reproducible without trusting model confidence.</p></div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="reveal">
+    <div class="sechead"><span class="idx">08</span><h2>Experiment log</h2><span class="sub2">06–07 SEP 2026</span></div>
+    <div class="card"><div class="tl">
+      <div class="t">SEP 06</div><div class="d">Nemotron pulled into Olares Ollama storage (~27 GB tag; ~27.6 GB API size).</div>
+      <div class="t">SEP 06</div><div class="d">Cold/warm runtime measured. ~82% GPU / 18% CPU split; ~23.8 GB VRAM used.</div>
+      <div class="t">SEP 07</div><div class="d">Synthetic passport generated. Clean extraction: 9/9 readable fields, MRZ errors, no declared uncertainty.</div>
+      <div class="t">SEP 07</div><div class="d">Degraded document test: model reconstructed unreadable fragments, still reported no uncertainty.</div>
+      <div class="t">SEP 07</div><div class="d">Deterministic MRZ / cross-field validator added; malformed evidence routed to NEED_MORE_EVIDENCE.</div>
+      <div class="t">SEP 07</div><div class="d">SWI-Prolog policy layer added; final decision = request_better_evidence.</div>
+      <div class="t">SEP 07</div><div class="d">Nemotron explanation layer completed the loop without overriding the FOL decision.</div>
+    </div></div>
+    <div class="honest" style="margin-top:16px">
+      <p><b>Notes & caveats.</b> Home-lab engineering experiment, not a benchmark paper and not a
+      compliance certification. Synthetic passport data only. The deterministic checks validate
+      properties of extracted data; they do not prove a document is genuine or a person is who
+      they claim to be. <span class="a">Next:</span> audio/video evidence → gate; realistic specimen
+      scans; a versioned policy library; perception, verification, logic and explanation as separate
+      components — not one trusted black box. This page is <b>Module 01</b> of the chain that ends at
+      <a href="https://www.solodkiy.cv/authorityclaw.html" style="color:var(--acid)">AuthorityClaw</a>.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footin">
+    <div>
+      <div class="footname">Slava <span>Solodkiy</span></div>
+      <p>Nemotron × FOL Evidence Gate · Local AI Lab · Olares One · Sep 2026.<br>
+      Module 01 of the AuthorityClaw provenance chain.</p>
+      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
+        <a class="minibadge" href="https://www.dram.gold/" target="_blank" rel="noopener"><i>▚</i>THE NVIDIA INNOVATOR'S DILEMMA · dram.gold</a>
+        <a class="minibadge" href="https://doi.org/10.6084/m9.figshare.33427318" target="_blank" rel="noopener"><i>▚</i>PAPER · figshare 33427318</a>
+      </div>
+    </div>
+    <div>
+      <h4>PROVENANCE //</h4>
+      <a href="https://www.solodkiy.cv/authorityclaw.html"><i>◄</i>hub · AuthorityClaw</a>
+      <a href="https://www.solodkiy.cv/Nemotron-FOL.html"><i>●</i>this page</a>
+      <a href="https://www.solodkiy.cv/compliance.html"><i>→</i>compliance</a>
+      <a href="https://www.solodkiy.cv/revolut-FOL-sovereign.html"><i>→</i>Revolut case</a>
+    </div>
+    <div>
+      <h4>RELATED //</h4>
+      <a href="https://www.solodkiy.cv/tech.html"><i>→</i>tech profile</a>
+      <a href="https://www.solodkiy.cv/olares.html"><i>→</i>Olares lab</a>
+      <a href="mailto:slava@dram.gold"><i>→</i>slava@dram.gold</a>
+    </div>
+  </div>
+  <div class="copy">
+    <span>NEMOTRON PERCEIVES · CODE VERIFIES · LOGIC DECIDES · NEMOTRON EXPLAINS</span>
+    <span>SYNTHETIC DATA ONLY</span>
+  </div>
+</footer>
+
+<script>
+(function glitch(){
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.body.classList.add('glitching');
+  setTimeout(() => document.body.classList.remove('glitching'), 300);
+  setTimeout(glitch, 2600 + Math.random()*4200);
+})();
+const ro = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting){ e.target.classList.add('on'); ro.unobserve(e.target); }
+}), {threshold:.1});
+document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+</script>
+</body>
+</html>
