@@ -1,0 +1,14 @@
+{
+  "model": "nemotron-3-nano-omni",
+  "specimen": "degraded",
+  "uncertain_fields": [],
+  "gate": [
+    false,
+    [
+      "date_of_birth:check_digit",
+      "composite:check_digit"
+    ]
+  ],
+  "note": "model confidently reconstructed MRZ fragments yet reported uncertain_fields: []",
+  "status": "captured summary; model inference not reproduced by CI"
+}
