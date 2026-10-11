@@ -1,0 +1,10 @@
+{
+  "model": "nemotron-3-nano-omni",
+  "specimen": "valid",
+  "uncertain_fields": [],
+  "gate": [
+    true,
+    []
+  ],
+  "status": "captured summary; model inference not reproduced by CI"
+}
